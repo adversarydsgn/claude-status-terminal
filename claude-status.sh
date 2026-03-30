@@ -4,7 +4,26 @@
 
 set -euo pipefail
 
+VERSION="1.1.0"
 REFRESH=30  # seconds between refreshes
+SCRIPT_URL="https://raw.githubusercontent.com/adversarydsgn/claude-status-terminal/main/claude-status.sh"
+SELF="$(realpath "$0")"
+
+# ── Self-update on manual refresh ──────────────────────
+self_update() {
+  local tmp
+  tmp=$(mktemp) || return
+  if curl -fsSL --max-time 5 "$SCRIPT_URL" -o "$tmp" 2>/dev/null; then
+    local remote_ver
+    remote_ver=$(grep '^VERSION=' "$tmp" | head -1 | cut -d'"' -f2)
+    if [[ -n "$remote_ver" && "$remote_ver" != "$VERSION" ]]; then
+      cp "$tmp" "$SELF" && chmod +x "$SELF"
+      rm -f "$tmp"
+      exec "$SELF" "$@"  # restart with new version
+    fi
+    rm -f "$tmp"
+  fi
+}
 
 # ── Trap cleanup ────────────────────────────────────────
 cleanup() {
@@ -16,7 +35,7 @@ trap cleanup INT TERM
 
 # ── Main render ─────────────────────────────────────────
 render() {
-  python3 << 'PYEOF'
+  CST_VERSION="$VERSION" python3 << 'PYEOF'
 import json, urllib.request, re, sys, os
 
 RST  = '\033[0m'
@@ -235,7 +254,7 @@ print()
 # ── Footer ──────────────────────────────────────────────
 updated = api['page']['updated_at'][:19].replace('T', ' ')
 print(f'  {DIM}Last updated: {updated} UTC │ r = refresh │ q = quit{RST}')
-print(f'  {DIM}Source: status.claude.com{RST}')
+print(f'  {DIM}v{os.environ.get("CST_VERSION", "?")} │ status.claude.com{RST}')
 print()
 PYEOF
 }
@@ -254,12 +273,18 @@ while true; do
   # Sleep in 1-second chunks; press r/F5 to refresh, q to quit
   for i in $(seq 1 "$REFRESH"); do
     if read -t 1 -n 1 key 2>/dev/null; then
-      [[ "$key" == "r" || "$key" == "R" ]] && break
+      if [[ "$key" == "r" || "$key" == "R" ]]; then
+        self_update  # check for new version on manual refresh
+        break
+      fi
       [[ "$key" == "q" || "$key" == "Q" ]] && cleanup
       # F5 sends escape sequence: ESC [ 1 5 ~
       if [[ "$key" == $'\x1b' ]]; then
         read -t 0.1 -n 4 seq 2>/dev/null
-        [[ "$seq" == "[15~" ]] && break
+        if [[ "$seq" == "[15~" ]]; then
+          self_update
+          break
+        fi
       fi
     fi
   done
