@@ -1,3 +1,19 @@
+```
+   ██████╗██╗      █████╗ ██╗   ██╗██████╗ ███████╗
+  ██╔════╝██║     ██╔══██╗██║   ██║██╔══██╗██╔════╝
+  ██║     ██║     ███████║██║   ██║██║  ██║█████╗
+  ██║     ██║     ██╔══██║██║   ██║██║  ██║██╔══╝
+  ╚██████╗███████╗██║  ██║╚██████╔╝██████╔╝███████╗
+   ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝
+  ███████╗████████╗ █████╗ ████████╗██╗   ██╗███████╗
+  ██╔════╝╚══██╔══╝██╔══██╗╚══██╔══╝██║   ██║██╔════╝
+  ███████╗   ██║   ███████║   ██║   ██║   ██║███████╗
+  ╚════██║   ██║   ██╔══██║   ██║   ██║   ██║╚════██║
+  ███████║   ██║   ██║  ██║   ██║   ╚██████╔╝███████║
+  ╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚══════╝
+                    ★ MADE IN AMERICA ★
+```
+
 # Claude Status Terminal 🇺🇸
 
 A live-updating terminal dashboard and macOS menubar app for monitoring [Claude](https://claude.ai) service status. Mirrors [status.claude.com](https://status.claude.com) with 90-day uptime history bars, incident tracking, and color-coded health indicators.
