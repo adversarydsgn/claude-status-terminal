@@ -1,0 +1,12 @@
+# Build artifacts
+claude-status-menubar
+*.app/
+AppIcon.icns
+
+# macOS
+.DS_Store
+*.swp
+
+# Python
+__pycache__/
+*.pyc

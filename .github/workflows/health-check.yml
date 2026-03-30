@@ -1,0 +1,190 @@
+name: Health Check
+
+on:
+  schedule:
+    # Run daily at 8am UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  api-check:
+    name: Verify Status API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check status.claude.com API is reachable
+        run: |
+          echo "=== Testing API endpoint ==="
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -H "User-Agent: claude-status-terminal-ci/1.0" \
+            "https://status.claude.com/api/v2/summary.json")
+
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::API returned HTTP $HTTP_CODE"
+            cat /tmp/response.json
+            exit 1
+          fi
+
+          echo "✓ API reachable"
+
+      - name: Validate API response structure
+        run: |
+          echo "=== Validating JSON structure ==="
+          python3 -c "
+          import json, sys
+
+          with open('/tmp/response.json') as f:
+              data = json.load(f)
+
+          errors = []
+
+          # Check required top-level keys
+          for key in ['page', 'status', 'components']:
+              if key not in data:
+                  errors.append(f'Missing top-level key: {key}')
+
+          # Check page structure
+          page = data.get('page', {})
+          if 'url' not in page:
+              errors.append('Missing page.url')
+
+          # Check status structure
+          status = data.get('status', {})
+          for key in ['indicator', 'description']:
+              if key not in status:
+                  errors.append(f'Missing status.{key}')
+
+          # Check components
+          components = data.get('components', [])
+          if len(components) == 0:
+              errors.append('No components found')
+          else:
+              for i, comp in enumerate(components):
+                  if 'name' not in comp:
+                      errors.append(f'Component {i} missing name')
+                  if 'status' not in comp:
+                      errors.append(f'Component {i} missing status')
+                  if 'id' not in comp:
+                      errors.append(f'Component {i} missing id')
+
+          if errors:
+              for e in errors:
+                  print(f'::error::{e}')
+              sys.exit(1)
+
+          print(f'✓ Valid response with {len(components)} components:')
+          for comp in components:
+              print(f'  {comp[\"name\"]}: {comp[\"status\"]}')
+          print(f'  Overall: {status[\"description\"]}')
+          "
+
+      - name: Check uptime history is scrapeable
+        run: |
+          echo "=== Testing uptime history scrape ==="
+          python3 -c "
+          import urllib.request, json, re, sys
+
+          req = urllib.request.Request(
+              'https://status.claude.com/',
+              headers={'User-Agent': 'claude-status-terminal-ci/1.0'}
+          )
+          with urllib.request.urlopen(req, timeout=15) as r:
+              html = r.read().decode('utf-8', errors='replace')
+
+          idx = html.find('uptimeData')
+          if idx < 0:
+              print('::error::uptimeData variable not found in HTML')
+              sys.exit(1)
+
+          start = html.find('{', idx)
+          depth = 0
+          for i in range(start, min(start + 300000, len(html))):
+              if html[i] == '{': depth += 1
+              elif html[i] == '}': depth -= 1
+              if depth == 0:
+                  end = i + 1
+                  break
+
+          data = json.loads(html[start:end])
+          print(f'✓ Scraped uptime history for {len(data)} components')
+
+          for comp_id, comp in data.items():
+              name = comp.get('component', {}).get('name', comp_id)
+              days = comp.get('days', [])
+              print(f'  {name}: {len(days)} days of history')
+              if len(days) < 30:
+                  print(f'::warning::Only {len(days)} days of history for {name} (expected ~90)')
+          "
+
+      - name: Validate shell script syntax
+        run: |
+          echo "=== Checking claude-status.sh syntax ==="
+          bash -n claude-status.sh
+          echo "✓ Shell script syntax valid"
+
+  build-check:
+    name: Verify Build (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Pillow
+        run: pip3 install Pillow
+
+      - name: Compile Swift menubar app
+        run: |
+          swiftc -O -o claude-status-menubar \
+            -framework Cocoa \
+            -framework Foundation \
+            ClaudeStatusMenubar.swift
+          echo "✓ Swift compilation successful"
+
+      - name: Generate icon
+        run: |
+          python3 generate-icon.py
+          test -f AppIcon.icns
+          echo "✓ Icon generated"
+
+      - name: Run build.sh
+        run: |
+          ./build.sh
+          test -d "Claude Status.app"
+          test -d "Claude Dashboard.app"
+          echo "✓ Full build successful"
+
+  notify-on-failure:
+    name: Notify on Failure
+    needs: [api-check, build-check]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue on failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Health check failed — ${new Date().toISOString().split('T')[0]}`;
+
+            // Check if issue already exists today
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'health-check',
+              per_page: 5
+            });
+
+            const today = new Date().toISOString().split('T')[0];
+            const alreadyExists = existing.data.some(i => i.title.includes(today));
+
+            if (!alreadyExists) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: `The daily health check failed. [View the run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).\n\nThis could mean:\n- The status.claude.com API changed its response format\n- The uptime history HTML structure changed\n- The Swift compilation broke on a new macOS version\n\ncc @adversarydsgn`,
+                labels: ['health-check', 'bug']
+              });
+            }
