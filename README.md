@@ -30,17 +30,34 @@ Free and open source. No account required.
 ## Requirements
 
 - macOS 12+
-- Python 3 with [Pillow](https://pypi.org/project/Pillow/) (`pip3 install Pillow`)
-- Xcode Command Line Tools (`xcode-select --install`)
+- Python 3 (ships with Xcode CLI tools, or `brew install python`)
 - `curl` (ships with macOS)
+
+For the menubar app (optional): Xcode Command Line Tools + Pillow (`pip3 install Pillow`)
 
 ## Install
 
+### Homebrew (recommended)
+```bash
+brew tap adversarydsgn/tap
+brew install claude-status
+```
+
+### One-liner
+```bash
+curl -fsSL https://raw.githubusercontent.com/adversarydsgn/claude-status-terminal/main/install-global.sh | bash
+```
+
+### From source
 ```bash
 git clone https://github.com/adversarydsgn/claude-status-terminal.git
 cd claude-status-terminal
 
-# Build everything (icon, menubar app, dashboard app)
+# Terminal dashboard only — ready to go:
+./claude-status.sh
+
+# Full build (menubar app + dashboard launcher):
+pip3 install Pillow  # if you don't have it
 ./build.sh
 
 # Optional: auto-start menubar on login
@@ -49,9 +66,9 @@ cd claude-status-terminal
 
 ## Usage
 
-### Terminal dashboard only
+### Terminal dashboard
 ```bash
-./claude-status.sh
+claude-status
 ```
 Press `Ctrl+C` to exit.
 
