@@ -1,6 +1,80 @@
 import Cocoa
 
-let APP_VERSION = "1.1.0"
+let APP_VERSION = "1.2.0"
+let SWIFT_SOURCE_URL = "https://raw.githubusercontent.com/adversarydsgn/claude-status-terminal/main/ClaudeStatusMenubar.swift"
+
+// MARK: - Self-Updater
+
+class SelfUpdater {
+    static func checkAndUpdate() {
+        DispatchQueue.global(qos: .utility).async {
+            guard let url = URL(string: SWIFT_SOURCE_URL) else { return }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 10
+
+            guard let data = try? Data(contentsOf: url),
+                  let source = String(data: data, encoding: .utf8)
+            else { return }
+
+            // Extract version from remote source
+            guard let range = source.range(of: #"let APP_VERSION = "([^"]+)""#, options: .regularExpression),
+                  let versionRange = source.range(of: #""([^"]+)""#, options: .regularExpression, range: range)
+            else { return }
+
+            let remoteVersion = String(source[versionRange]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+
+            guard remoteVersion != APP_VERSION else { return }
+
+            // New version available — compile and replace
+            let appBundle = Bundle.main.bundlePath
+            let execPath = appBundle + "/Contents/MacOS/ClaudeStatusMenubar"
+            let tmpSource = NSTemporaryDirectory() + "ClaudeStatusMenubar.swift"
+            let tmpBinary = NSTemporaryDirectory() + "ClaudeStatusMenubar_new"
+
+            // Write source to temp
+            try? source.write(toFile: tmpSource, atomically: true, encoding: .utf8)
+
+            // Compile
+            let compile = Process()
+            compile.executableURL = URL(fileURLWithPath: "/usr/bin/swiftc")
+            compile.arguments = ["-O", "-o", tmpBinary, "-framework", "Cocoa", "-framework", "Foundation", tmpSource]
+            compile.standardOutput = FileHandle.nullDevice
+            compile.standardError = FileHandle.nullDevice
+
+            do {
+                try compile.run()
+                compile.waitUntilExit()
+            } catch { return }
+
+            guard compile.terminationStatus == 0 else { return }
+
+            // Replace binary and relaunch
+            do {
+                try FileManager.default.removeItem(atPath: execPath)
+                try FileManager.default.moveItem(atPath: tmpBinary, toPath: execPath)
+
+                // Make executable
+                let chmod = Process()
+                chmod.executableURL = URL(fileURLWithPath: "/bin/chmod")
+                chmod.arguments = ["+x", execPath]
+                try chmod.run()
+                chmod.waitUntilExit()
+
+                // Relaunch
+                DispatchQueue.main.async {
+                    let task = Process()
+                    task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                    task.arguments = ["-a", appBundle]
+                    try? task.run()
+                    NSApp.terminate(nil)
+                }
+            } catch { return }
+
+            // Cleanup
+            try? FileManager.default.removeItem(atPath: tmpSource)
+        }
+    }
+}
 
 // MARK: - Status Types
 
@@ -363,6 +437,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func refreshNow() {
         fetchAndUpdate()
+        SelfUpdater.checkAndUpdate()
     }
 
     @objc func quit() {
