@@ -1,6 +1,6 @@
 import Cocoa
 
-let APP_VERSION = "2.1.3"
+let APP_VERSION = "2.1.5"
 let SWIFT_SOURCE_URL = "https://raw.githubusercontent.com/adversarydsgn/claude-status/main/ClaudeStatusMenubar.swift"
 
 // MARK: - Self-Updater
@@ -166,7 +166,7 @@ class UptimeFetcher {
             case "Claude API":          match = lo.contains("api")
             default:                   match = name == shortName || lo.contains(shortName.lowercased())
             }
-            if match { return Array(scores.suffix(90)) }
+            if match { return Array(scores.suffix(30)) }
         }
         return nil
     }
@@ -302,7 +302,7 @@ class ServiceRowView: NSView {
     private var isServiceEnabled: Bool
 
     var toggleAction: (() -> Void)?
-    var moveAction: ((Int) -> Void)?
+    var reorderAction: (() -> Void)?
 
     private var isHovered = false
 
@@ -332,16 +332,19 @@ class ServiceRowView: NSView {
             : (isServiceEnabled ? .labelColor : .secondaryLabelColor)
         let dimColor: NSColor = isHovered ? NSColor.white.withAlphaComponent(0.55) : .quaternaryLabelColor
 
-        // ▲▼ tap-to-reorder: top half = up, bottom half = down
-        let arrowAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 9, weight: .medium),
-            .foregroundColor: dimColor
-        ]
-        let upStr = NSAttributedString(string: "▲", attributes: arrowAttrs)
-        let dnStr = NSAttributedString(string: "▼", attributes: arrowAttrs)
-        let ax = (ServiceRowView.handleW - upStr.size().width) / 2
-        upStr.draw(at: NSPoint(x: ax, y: bounds.midY + 1))
-        dnStr.draw(at: NSPoint(x: ax, y: bounds.midY - dnStr.size().height - 0))
+        // ≡ grip icon — tap to open reorder panel
+        dimColor.setFill()
+        let lineCount = 4
+        let lineW: CGFloat = 12
+        let lineH: CGFloat = 1.25
+        let lineGap: CGFloat = 2.5
+        let totalH = CGFloat(lineCount) * lineH + CGFloat(lineCount - 1) * lineGap
+        let gx = (ServiceRowView.handleW - lineW) / 2
+        var gy = (bounds.height - totalH) / 2
+        for _ in 0..<lineCount {
+            NSBezierPath(roundedRect: NSRect(x: gx, y: gy, width: lineW, height: lineH), xRadius: 0.5, yRadius: 0.5).fill()
+            gy += lineH + lineGap
+        }
 
         // Status + name
         let title = "\(statusEmoji)  \(shortName) — \(statusLabel)"
@@ -369,9 +372,9 @@ class ServiceRowView: NSView {
     override func mouseDown(with event: NSEvent) {
         let loc = convert(event.locationInWindow, from: nil)
         if loc.x < ServiceRowView.handleW {
-            // Top half = move up (-1), bottom half = move down (+1)
-            let offset = loc.y >= bounds.midY ? -1 : 1
-            moveAction?(offset)
+            // NSMenu eats mouseDragged — drag-reorder must happen outside the menu.
+            enclosingMenuItem?.menu?.cancelTracking()
+            reorderAction?()
         } else {
             isServiceEnabled.toggle()
             needsDisplay = true
@@ -401,7 +404,7 @@ class UptimeRowView: NSView {
             img.draw(in: NSRect(x: indent, y: imgY, width: img.size.width, height: img.size.height))
 
             if let avg = uptime.average(for: shortName) {
-                let pctStr = String(format: "%.2f%% · 90d", avg)
+                let pctStr = String(format: "%.2f%% · 30d", avg)
                 let pctAS = NSAttributedString(string: pctStr, attributes: [
                     .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular),
                     .foregroundColor: NSColor.secondaryLabelColor
@@ -422,6 +425,130 @@ class UptimeRowView: NSView {
     override func mouseDown(with event: NSEvent) {}
 }
 
+// MARK: - Reorder Window
+
+class ReorderWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate {
+    private let tableView = NSTableView()
+    private var items: [String]
+    private let onSave: ([String]) -> Void
+    private static let pasteboardType = NSPasteboard.PasteboardType("com.adversary.claude-status.row")
+
+    init(items: [String], onSave: @escaping ([String]) -> Void) {
+        self.items = items
+        self.onSave = onSave
+
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 280, height: 320),
+            styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = "Reorder Services"
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+        panel.becomesKeyOnlyIfNeeded = true
+        panel.worksWhenModal = true
+
+        super.init(window: panel)
+
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 36, width: 280, height: 284))
+        scroll.autoresizingMask = [.width, .height]
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .noBorder
+        scroll.drawsBackground = false
+
+        let col = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
+        col.width = 260
+        col.title = ""
+        tableView.addTableColumn(col)
+        tableView.headerView = nil
+        tableView.rowHeight = 28
+        tableView.dataSource = self
+        tableView.delegate = self
+        tableView.backgroundColor = .clear
+        tableView.style = .inset
+        tableView.registerForDraggedTypes([Self.pasteboardType])
+        tableView.draggingDestinationFeedbackStyle = .gap
+
+        scroll.documentView = tableView
+        panel.contentView?.addSubview(scroll)
+
+        let hint = NSTextField(labelWithString: "Drag rows to reorder. Close when done.")
+        hint.font = NSFont.systemFont(ofSize: 11)
+        hint.textColor = .secondaryLabelColor
+        hint.frame = NSRect(x: 12, y: 10, width: 256, height: 18)
+        hint.autoresizingMask = [.width, .maxYMargin]
+        panel.contentView?.addSubview(hint)
+    }
+    required init?(coder: NSCoder) { nil }
+
+    func show(near point: NSPoint) {
+        guard let win = window else { return }
+        let frame = win.frame
+        let origin = NSPoint(x: point.x - frame.width / 2, y: point.y - frame.height - 8)
+        win.setFrameOrigin(origin)
+        showWindow(nil)
+        win.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: NSTableView data source / delegate
+
+    func numberOfRows(in tableView: NSTableView) -> Int { items.count }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let id = NSUserInterfaceItemIdentifier("cell")
+        let cell = tableView.makeView(withIdentifier: id, owner: self) as? NSTableCellView ?? {
+            let c = NSTableCellView()
+            c.identifier = id
+            let tf = NSTextField(labelWithString: "")
+            tf.font = NSFont.systemFont(ofSize: 13)
+            tf.translatesAutoresizingMaskIntoConstraints = false
+            c.addSubview(tf)
+            c.textField = tf
+            NSLayoutConstraint.activate([
+                tf.leadingAnchor.constraint(equalTo: c.leadingAnchor, constant: 8),
+                tf.trailingAnchor.constraint(equalTo: c.trailingAnchor, constant: -8),
+                tf.centerYAnchor.constraint(equalTo: c.centerYAnchor)
+            ])
+            return c
+        }()
+        cell.textField?.stringValue = "≡   \(items[row])"
+        return cell
+    }
+
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
+        let item = NSPasteboardItem()
+        item.setString(String(row), forType: Self.pasteboardType)
+        return item
+    }
+
+    func tableView(_ tableView: NSTableView,
+                   validateDrop info: NSDraggingInfo,
+                   proposedRow row: Int,
+                   proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
+        return dropOperation == .above ? .move : []
+    }
+
+    func tableView(_ tableView: NSTableView,
+                   acceptDrop info: NSDraggingInfo,
+                   row: Int,
+                   dropOperation: NSTableView.DropOperation) -> Bool {
+        guard let pbItems = info.draggingPasteboard.pasteboardItems,
+              let str = pbItems.first?.string(forType: Self.pasteboardType),
+              let from = Int(str) else { return false }
+        let target = row > from ? row - 1 : row
+        let moved = items.remove(at: from)
+        items.insert(moved, at: target)
+        tableView.beginUpdates()
+        tableView.moveRow(at: from, to: target)
+        tableView.endUpdates()
+        onSave(items)
+        return true
+    }
+}
+
 // MARK: - App Delegate
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -429,6 +556,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var timer: Timer?
     var lastStatus: StatusResponse?
     var lastFetchTime: Date?
+    var reorderController: ReorderWindowController?
 
     let claudeOrange = NSColor(calibratedRed: 0.85, green: 0.47, blue: 0.34, alpha: 0.85)
 
@@ -562,10 +690,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
 
-                rowView.moveAction = { [weak self] rowsToMove in
-                    guard let self = self else { return }
-                    prefs.move(comp.shortName, by: rowsToMove, in: allNames)
-                    self.buildMenu()
+                rowView.reorderAction = { [weak self] in
+                    self?.openReorderWindow(allNames: allNames)
                 }
 
                 let rowItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -683,6 +809,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func quit() { NSApp.terminate(nil) }
+
+    func openReorderWindow(allNames: [String]) {
+        // Seed order from saved prefs, falling back to current display order
+        var order = Preferences.shared.componentOrder
+        for n in allNames where !order.contains(n) { order.append(n) }
+        order = order.filter { allNames.contains($0) }
+
+        reorderController = ReorderWindowController(items: order) { [weak self] newOrder in
+            Preferences.shared.componentOrder = newOrder
+            self?.updateIcon()
+            self?.buildMenu()
+        }
+
+        // Anchor under the menubar icon
+        let anchor: NSPoint
+        if let btn = statusItem.button, let win = btn.window {
+            let r = win.convertToScreen(btn.convert(btn.bounds, to: nil))
+            anchor = NSPoint(x: r.midX, y: r.minY)
+        } else {
+            let frame = NSScreen.main?.frame ?? .zero
+            anchor = NSPoint(x: frame.midX, y: frame.maxY - 24)
+        }
+        reorderController?.show(near: anchor)
+    }
 }
 
 // MARK: - Main
