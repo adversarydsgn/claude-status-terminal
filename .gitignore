@@ -10,3 +10,6 @@ AppIcon.icns
 # Python
 __pycache__/
 *.pyc
+
+# Local session artifacts
+_artifacts/
