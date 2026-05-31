@@ -1,0 +1,17 @@
+# gitleaks config — extends the built-in default ruleset.
+# Hard-enforcement layer: blocks secrets before they leave the machine
+# (CI on push/PR + optional local .githooks/pre-push).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders and docs — no real values live here."
+paths = [
+  '''\.env\.example$''',
+  '''README\.md$''',
+]
+# Placeholder assignments like KEY=... or KEY=<your-key> are not real secrets.
+regexes = [
+  '''=\s*\.\.\.\s*$''',
+  '''=\s*<[^>]+>''',
+]

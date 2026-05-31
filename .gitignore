@@ -13,3 +13,8 @@ __pycache__/
 
 # Local session artifacts
 _artifacts/
+
+# Secrets — never commit (this repo needs none)
+.env
+.env.*
+!.env.example

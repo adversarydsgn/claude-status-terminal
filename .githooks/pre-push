@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Local secret-scan before push. Enable once per clone:
+#   git config core.hooksPath .githooks
+# Requires gitleaks (brew install gitleaks). Degrades to a warning if absent —
+# CI (.github/workflows/gitleaks.yml) is the hard gate regardless.
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-push: gitleaks not installed — skipping local scan (CI still enforces)." >&2
+  echo "          install with: brew install gitleaks" >&2
+  exit 0
+fi
+
+echo "pre-push: gitleaks scanning staged/committed range…" >&2
+if ! gitleaks git --no-banner --redact -v; then
+  echo "pre-push: gitleaks found potential secrets — push blocked." >&2
+  echo "          fix or, if a false positive, add an allowlist entry in .gitleaks.toml." >&2
+  exit 1
+fi
+echo "pre-push: gitleaks clean." >&2

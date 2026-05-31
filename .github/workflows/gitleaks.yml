@@ -1,0 +1,19 @@
+name: gitleaks
+# Hard enforcement: scan every push + PR for leaked secrets.
+# Free for personal-account repos (adversarydsgn) — no GITLEAKS_LICENSE needed.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
