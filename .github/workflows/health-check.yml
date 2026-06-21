@@ -190,7 +190,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: title,
-                body: `The daily health check failed. [View the run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).\n\nThis could mean:\n- The status.claude.com API changed its response format\n- The uptime history HTML structure changed\n- The Swift compilation broke on a new macOS version\n\ncc @adversarydsgn`,
+                body: `The daily health check failed. [View the run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).\n\nThis could mean:\n- The status.claude.com API changed its response format\n- The uptime history HTML structure changed\n- The Swift compilation broke on a new macOS version\n\ncc @adversarydesign`,
                 labels: ['health-check', 'bug']
               });
             }
