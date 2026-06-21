@@ -85,12 +85,12 @@ brew install claude-status
 
 ### One-liner
 ```bash
-curl -fsSL https://raw.githubusercontent.com/adversarydsgn/claude-status-terminal/main/install-global.sh | bash
+curl -fsSL https://raw.githubusercontent.com/adversarydesign/claude-status/main/install-global.sh | bash
 ```
 
 ### From source
 ```bash
-git clone https://github.com/adversarydsgn/claude-status-terminal.git
+git clone https://github.com/adversarydesign/claude-status.git
 cd claude-status-terminal
 
 # Terminal dashboard only — ready to go:
