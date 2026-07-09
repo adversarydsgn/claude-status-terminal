@@ -1,7 +1,7 @@
 import Cocoa
 
 let APP_VERSION = "2.1.5"
-let SWIFT_SOURCE_URL = "https://raw.githubusercontent.com/adversarydsgn/claude-status/main/ClaudeStatusMenubar.swift"
+let SWIFT_SOURCE_URL = "https://raw.githubusercontent.com/adversarydesign/claude-status/main/ClaudeStatusMenubar.swift"
 
 // MARK: - Self-Updater
 

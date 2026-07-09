@@ -56,7 +56,7 @@ appears" and "stays clean enough to publish" the live constraints.
 - **Public-repo hygiene:** everything here ships to a public GitHub repo. Flag
   any absolute local path (`/Users/adversary/…`), personal hostname, internal
   URL, or machine-specific assumption. Installer/script URLs must point at the
-  public `adversarydsgn/claude-status*` GitHub raw paths, not local paths.
+  public `adversarydesign/claude-status*` GitHub raw paths, not local paths.
 - **Self-update safety (`claude-status.sh` `self_update`):** the script
   overwrites its own file (`cp "$tmp" "$SELF"`) and `exec`s the new version.
   Flag changes that fetch over plain `http://`, drop `--max-time`/`-fsSL`,

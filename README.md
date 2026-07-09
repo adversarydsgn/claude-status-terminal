@@ -79,7 +79,7 @@ For the menubar app (optional): Xcode Command Line Tools + Pillow (`pip3 install
 
 ### Homebrew (recommended)
 ```bash
-brew tap adversarydsgn/tap
+brew tap adversarydesign/tap
 brew install claude-status
 ```
 
@@ -167,4 +167,4 @@ MIT License. See [LICENSE](LICENSE).
 
 ---
 
-Built by [Adversary](https://github.com/adversarydsgn). Not affiliated with Anthropic.
+Built by [Adversary](https://github.com/adversarydesign). Not affiliated with Anthropic.

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Quick installer for Claude Status Terminal
-# Usage: curl -fsSL https://raw.githubusercontent.com/adversarydsgn/claude-status-terminal/main/install-global.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/adversarydesign/claude-status-terminal/main/install-global.sh | bash
 set -euo pipefail
 
 echo ""
@@ -31,7 +31,7 @@ fi
 echo "  Downloading..."
 rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
-curl -fsSL "https://raw.githubusercontent.com/adversarydsgn/claude-status-terminal/main/claude-status.sh" -o "$INSTALL_DIR/claude-status.sh"
+curl -fsSL "https://raw.githubusercontent.com/adversarydesign/claude-status-terminal/main/claude-status.sh" -o "$INSTALL_DIR/claude-status.sh"
 chmod +x "$INSTALL_DIR/claude-status.sh"
 
 # Symlink to bin

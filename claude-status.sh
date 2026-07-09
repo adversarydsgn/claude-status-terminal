@@ -6,7 +6,7 @@ set -euo pipefail
 
 VERSION="1.1.0"
 REFRESH=30  # seconds between refreshes
-SCRIPT_URL="https://raw.githubusercontent.com/adversarydsgn/claude-status-terminal/main/claude-status.sh"
+SCRIPT_URL="https://raw.githubusercontent.com/adversarydesign/claude-status-terminal/main/claude-status.sh"
 SELF="$(realpath "$0")"
 
 # ── Self-update on manual refresh ──────────────────────
