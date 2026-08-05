@@ -29,7 +29,9 @@ Every PR to this repo must pass, before merge:
 - **gitleaks** — secret scan, repo workflow.
 - **Deterministic checks** — org ruleset requires three workflows from
   `adversarydesign/agent-context-guard`: `actionlint` (workflow lint),
-  `shellcheck` (all shell scripts), `zizmor` (Actions security). A pre-existing
+  `shellcheck` (all shell scripts), `zizmor` (Actions security). These run
+  the host repo's `main` definitions, so check fixes land fleet-wide when
+  they merge there — nothing to update in this repo. A pre-existing
   violation reds the next PR that touches the repo — fix forward, don't bypass.
 
 Shellcheck discipline this repo has already paid for: the self-update path
