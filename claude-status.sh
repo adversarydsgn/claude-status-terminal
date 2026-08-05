@@ -10,7 +10,7 @@ SCRIPT_URL="https://raw.githubusercontent.com/adversarydesign/claude-status-term
 SELF="$(realpath "$0")"
 
 # ── Self-update on manual refresh ──────────────────────
-self_update() {
+self_update() {  # call with "$@" so a restart keeps the script args
   local tmp
   tmp=$(mktemp) || return
   if curl -fsSL --max-time 5 "$SCRIPT_URL" -o "$tmp" 2>/dev/null; then
@@ -265,16 +265,14 @@ tput civis 2>/dev/null  # hide cursor
 # Re-render immediately on terminal resize
 trap 'clear; render' WINCH
 
-LAST_COLS=$(tput cols 2>/dev/null || echo 80)
-
 while true; do
   clear
   render
   # Sleep in 1-second chunks; press r/F5 to refresh, q to quit
-  for i in $(seq 1 "$REFRESH"); do
+  for _ in $(seq 1 "$REFRESH"); do
     if read -t 1 -n 1 key 2>/dev/null; then
       if [[ "$key" == "r" || "$key" == "R" ]]; then
-        self_update  # check for new version on manual refresh
+        self_update "$@"  # check for new version on manual refresh
         break
       fi
       [[ "$key" == "q" || "$key" == "Q" ]] && cleanup
@@ -282,7 +280,7 @@ while true; do
       if [[ "$key" == $'\x1b' ]]; then
         read -t 0.1 -n 4 seq 2>/dev/null
         if [[ "$seq" == "[15~" ]]; then
-          self_update
+          self_update "$@"
           break
         fi
       fi
