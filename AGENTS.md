@@ -18,6 +18,27 @@ status.claude.com API — no auth, no credentials.
 - Build artifacts are gitignored (`claude-status-menubar`, `*.app/`,
   `AppIcon.icns`, `__pycache__/`, `_artifacts/`). Never stage them.
 
+## PR gates (verified live 2026-08-05)
+
+Every PR to this repo must pass, before merge:
+
+- **CTO PR Review** — the adversary reviewer webhook posts one receipt per
+  reviewed head and sets a required commit status. A PR with no review status
+  is blocked, not passing; if the review never arrives, the webhook funnel is
+  the first place to look.
+- **gitleaks** — secret scan, repo workflow.
+- **Deterministic checks** — org ruleset requires three workflows from
+  `adversarydesign/agent-context-guard`: `actionlint` (workflow lint),
+  `shellcheck` (all shell scripts), `zizmor` (Actions security). These run
+  the host repo's `main` definitions, so check fixes land fleet-wide when
+  they merge there — nothing to update in this repo. A pre-existing
+  violation reds the next PR that touches the repo — fix forward, don't bypass.
+
+Shellcheck discipline this repo has already paid for: the self-update path
+re-execs with `exec "$SELF" "$@"` — the `"$@"` is load-bearing. Dropping script
+args across a self-update restart was a real shipped bug (PR #25); keep args
+forwarded on every re-exec.
+
 ## Secrets — bright lines (build-time prevention)
 
 This repo has **no secrets**: no API keys, no tokens, no `.env`. It talks only
