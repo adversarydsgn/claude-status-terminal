@@ -168,3 +168,5 @@ MIT License. See [LICENSE](LICENSE).
 ---
 
 Built by [Adversary](https://github.com/adversarydesign). Not affiliated with Anthropic.
+
+<!-- INF-1311 App-check-run gate canary: verifies the repo ruleset pins the adversary-pr-reviewer check run as the required reviewer gate. PR closes unmerged. -->
