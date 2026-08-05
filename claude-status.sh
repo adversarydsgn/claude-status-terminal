@@ -270,7 +270,7 @@ while true; do
   render
   # Sleep in 1-second chunks; press r/F5 to refresh, q to quit
   for _ in $(seq 1 "$REFRESH"); do
-    if read -t 1 -n 1 key 2>/dev/null; then
+    if read -r -t 1 -n 1 key 2>/dev/null; then
       if [[ "$key" == "r" || "$key" == "R" ]]; then
         self_update "$@"  # check for new version on manual refresh
         break
@@ -278,7 +278,7 @@ while true; do
       [[ "$key" == "q" || "$key" == "Q" ]] && cleanup
       # F5 sends escape sequence: ESC [ 1 5 ~
       if [[ "$key" == $'\x1b' ]]; then
-        read -t 0.1 -n 4 seq 2>/dev/null
+        read -r -t 0.1 -n 4 seq 2>/dev/null
         if [[ "$seq" == "[15~" ]]; then
           self_update "$@"
           break
