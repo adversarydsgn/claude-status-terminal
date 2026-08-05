@@ -1,0 +1,44 @@
+# Stamped copy from adversarydesign/agent-context-guard@0b55dce44d1b9b26bc7a15873c6b074ed0b00021 (SYS-244).
+# Do not edit in place — re-stamp from the host repo.
+# Zizmor — org-ruleset required workflow (SYS-244).
+# Security audit of GitHub Actions configuration: unpinned actions,
+# unsafe workflow patterns, token leaks. Offline mode (no Advanced
+# Security dependency). No-ops green on repos without workflow files.
+
+name: Zizmor
+
+on:
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: Zizmor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Workflow-files gate
+        id: gate
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(.github/workflows/*.yml .github/workflows/*.yaml)
+          if [ "${#files[@]}" -gt 0 ]; then
+            echo "workflows=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "workflows=no" >> "$GITHUB_OUTPUT"
+            echo "No workflow files; zizmor passes as not applicable."
+          fi
+
+      - name: Run zizmor
+        if: steps.gate.outputs.workflows == 'yes'
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          advanced-security: false
+          online-audits: false

@@ -1,0 +1,48 @@
+# Stamped copy from adversarydesign/agent-context-guard@0b55dce44d1b9b26bc7a15873c6b074ed0b00021 (SYS-244).
+# Do not edit in place — re-stamp from the host repo.
+# Actionlint — org-ruleset required workflow (SYS-244).
+# Lints .github/workflows files: catches expression typos, bad event/branch
+# filters (the silent-death class), and shellcheck findings in run: blocks.
+# No-ops green on repos without workflow files.
+
+name: Actionlint
+
+on:
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Workflow-files gate
+        id: gate
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(.github/workflows/*.yml .github/workflows/*.yaml)
+          if [ "${#files[@]}" -gt 0 ]; then
+            echo "workflows=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "workflows=no" >> "$GITHUB_OUTPUT"
+            echo "No workflow files; actionlint passes as not applicable."
+          fi
+
+      - name: Install actionlint (pinned)
+        if: steps.gate.outputs.workflows == 'yes'
+        shell: bash
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
+
+      - name: Run actionlint
+        if: steps.gate.outputs.workflows == 'yes'
+        shell: bash
+        run: ./actionlint -color

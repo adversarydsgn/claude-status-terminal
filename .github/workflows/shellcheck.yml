@@ -1,0 +1,50 @@
+# Stamped copy from adversarydesign/agent-context-guard@0b55dce44d1b9b26bc7a15873c6b074ed0b00021 (SYS-244).
+# Do not edit in place — re-stamp from the host repo.
+# ShellCheck — org-ruleset required workflow (SYS-244).
+# Static checks for tracked shell scripts (*.sh plus shell shebangs).
+# Uses the runner's preinstalled shellcheck. No-ops green on repos
+# without shell scripts.
+
+name: ShellCheck
+
+on:
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Collect shell scripts
+        id: collect
+        shell: bash
+        run: |
+          : > /tmp/shell-files.txt
+          git ls-files '*.sh' >> /tmp/shell-files.txt
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            case "$f" in *.sh) continue ;; esac
+            if head -n1 -- "$f" 2>/dev/null | grep -qE '^#!.*\b(bash|sh|zsh)\b'; then
+              echo "$f" >> /tmp/shell-files.txt
+            fi
+          done < <(git ls-files)
+          sort -u /tmp/shell-files.txt -o /tmp/shell-files.txt
+          count=$(wc -l < /tmp/shell-files.txt | tr -d ' ')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Found $count shell script(s)."
+          cat /tmp/shell-files.txt
+
+      - name: Run shellcheck
+        if: steps.collect.outputs.count != '0'
+        shell: bash
+        run: |
+          shellcheck --version
+          xargs -a /tmp/shell-files.txt shellcheck
