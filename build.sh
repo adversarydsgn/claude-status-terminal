@@ -75,14 +75,24 @@ rm -rf "Claude Dashboard.app"
 mkdir -p "Claude Dashboard.app/Contents/MacOS"
 mkdir -p "Claude Dashboard.app/Contents/Resources"
 cp AppIcon.icns "Claude Dashboard.app/Contents/Resources/AppIcon.icns"
+cp claude-status.sh "Claude Dashboard.app/Contents/Resources/claude-status.sh"
+chmod +x "Claude Dashboard.app/Contents/Resources/claude-status.sh"
 
-cat > "Claude Dashboard.app/Contents/MacOS/launch" << EOF
+cat > "Claude Dashboard.app/Contents/MacOS/launch" << 'LAUNCHER'
 #!/bin/bash
-osascript -e 'tell application "Terminal"
+set -euo pipefail
+
+RESOURCE_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
+
+osascript - "$RESOURCE_DIR/claude-status.sh" << 'APPLESCRIPT'
+on run argv
+tell application "Terminal"
     activate
-    do script "\"$SCRIPT_DIR/claude-status.sh\""
-end tell'
-EOF
+    do script quoted form of (item 1 of argv)
+end tell
+end run
+APPLESCRIPT
+LAUNCHER
 chmod +x "Claude Dashboard.app/Contents/MacOS/launch"
 
 cat > "Claude Dashboard.app/Contents/Info.plist" << 'PLIST2'
