@@ -12,7 +12,7 @@ permissions:
 jobs:
   api-check:
     name: Verify Status API
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, orbstack]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -132,7 +132,7 @@ jobs:
 
   build-check:
     name: Verify Build (macOS)
-    runs-on: macos-latest
+    runs-on: [self-hosted, orbstack]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -169,7 +169,7 @@ jobs:
     name: Notify on Failure
     needs: [api-check, build-check]
     if: failure()
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, orbstack]
     permissions:
       issues: write
     steps:
